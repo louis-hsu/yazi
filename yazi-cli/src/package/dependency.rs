@@ -1,7 +1,6 @@
 use std::{env, io::{self, BufWriter}, path::{Path, PathBuf}, str::FromStr};
 
 use anyhow::{Result, bail};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use twox_hash::XxHash3_128;
 use yazi_fs::Xdg;
 use yazi_macro::ok_or_not_found;
@@ -119,41 +118,3 @@ impl FromStr for Dependency {
 	}
 }
 
-impl<'de> Deserialize<'de> for Dependency {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where
-		D: Deserializer<'de>,
-	{
-		#[derive(Deserialize)]
-		struct Shadow {
-			r#use: String,
-			#[serde(default)]
-			rev:   String,
-			#[serde(default)]
-			hash:  String,
-		}
-
-		let outer = Shadow::deserialize(deserializer)?;
-		Ok(Self {
-			rev: outer.rev,
-			hash: outer.hash,
-			..Self::from_str(&outer.r#use).map_err(serde::de::Error::custom)?
-		})
-	}
-}
-
-impl Serialize for Dependency {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-	where
-		S: Serializer,
-	{
-		#[derive(Serialize)]
-		struct Shadow<'a> {
-			r#use: &'a str,
-			rev:   &'a str,
-			hash:  &'a str,
-		}
-
-		Shadow { r#use: &self.r#use, rev: &self.rev, hash: &self.hash }.serialize(serializer)
-	}
-}
